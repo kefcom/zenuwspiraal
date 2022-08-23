@@ -38,24 +38,24 @@ int customEffect1_counter = 0;
 int demoSpeed;
 int demoIndex;
 
-int SP_defaultSpeed = 30000; //speed in game mode 1 (STATE 7)
+int SP_defaultSpeed = 80000; //speed in game mode 1 (STATE 7)
 int SP_speed; //speed in game mode 1 (STATE 7) (set during the game)
-int SP_interval = 15; //speed increase in mode 1 (STATE 7) (in percentage)
+int SP_interval = 10; //speed increase in mode 1 (STATE 7) (in percentage)
 int SP_gamesWon = 0;
 
 unsigned long gameStartTime;
 
-// speeds (baby, kid, junior, adult, expert)
-//        (40s,  35s, 30s,    20s,   10s)
-int SP_speeds[5] = {40000,35000,30000,20000,10000};
-uint32_t SP_colors[5] = {GREEN, BLUE, YELLOW, ORANGE, RED};
+// speeds (baby, kid, junior, adult, expert, superpeed)
+//        (120s,  100,80,60,40,20)
+int SP_speeds[6] = {120000,100000,80000,60000,40000,20000};
+uint32_t SP_colors[6] = {GREEN, BLUE, YELLOW, ORANGE, RED, PURPLE};
 int SP_index; // index
-int SP_penalty[5] = {3000,3000,3000,3000,3000};
+int SP_penalty[6] = {3000,3000,3000,3000,3000,3000};
 
 //game 3 options
 uint32_t MP_colors[8] = {RED,GREEN,BLUE,PURPLE,YELLOW,CYAN,ORANGE,WHITE};
 int MP_players = 2;
-int MP_defaultSpeed = 30000;
+int MP_defaultSpeed = 80000;
 int MP_speed;
 unsigned long MP_fastestTime;
 int MP_penalty = 3000;
@@ -65,6 +65,8 @@ int MP_leader;
 
 unsigned long lastPenalty;
 int Penalty_effectDuration = 2000;
+
+bool resetPressDown = false;
 
 
 WS2812FX ws2812fx = WS2812FX(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -85,13 +87,16 @@ void setup() {
     lastButtonState[i] = HIGH;
   }
 
+  pinMode(RELAIS,OUTPUT);
+  digitalWrite(RELAIS, HIGH);
+
   Serial.begin(9600);
 
   //define segments on the ledstrip
   ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_RAINBOW_CYCLE, RED, 1000, false); //CONE_LEFT
   ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_RAINBOW_CYCLE, RED, 1000, false); //COPPER_TUBE
   ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_RAINBOW_CYCLE, RED, 1000, false); //CONE_RIGHT
-  ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_4
+  ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, 2, WHITE, 2000, false); //BTN_4
   ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_3
   ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_BLINK, GREEN, 500, false); //BTN_2
   ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_1
@@ -112,7 +117,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_RAINBOW_CYCLE, RED, 1000, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_RAINBOW_CYCLE, RED, 1000, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_RAINBOW_CYCLE, RED, 1000, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_BLINK, GREEN, 500, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_1    
@@ -122,7 +126,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_6_STOP +2, segment_6_STOP +2, FX_MODE_RAINBOW_CYCLE, RED, 1000, false); //CONE_LEFT       
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_CUSTOM, RED, demoSpeed, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, BLACK, 1000, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_BLINK, GREEN, 500, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLUE, 1000, false); //BTN_1
@@ -134,7 +137,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_6_STOP +2, segment_6_STOP +2, FX_MODE_RAINBOW_CYCLE, RED, 1000, false); //CONE_LEFT       
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_CUSTOM, SP_colors[SP_index], SP_speeds[SP_index] / (segment_1_STOP-segment_1_START), false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, BLACK, 1000, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_BLINK, SP_colors[SP_index], 1000, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_BLINK, GREEN, 500, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLUE, 1000, false); //BTN_1
@@ -147,7 +149,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_6_STOP +2, segment_6_STOP +2, FX_MODE_RAINBOW_CYCLE, RED, 1000, false); //CONE_LEFT       
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_CUSTOM, RED, demoSpeed, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, BLACK, 1000, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_BLINK, GREEN, 500, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLUE, 1000, false); //BTN_1
@@ -160,7 +161,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, 16, RED, 700, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_CUSTOM, RED, 100, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, BLACK, 1000, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 500, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_1
@@ -173,7 +173,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_STATIC, GREEN, 100, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_STATIC, BLACK, 100, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, GREEN, 100, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1    
@@ -182,7 +181,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_BLINK, GREEN, 1000, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_STATIC, BLACK, 100, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, GREEN, 100, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_1    
@@ -192,7 +190,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, 16, GREEN, 1000, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_CUSTOM, BLACK, SP_speed / (segment_1_STOP-segment_1_START), false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, 16, GREEN, 1000, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_1    
@@ -202,7 +199,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_BLINK, RED, 500, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, (segment_1_START+ customEffect1_counter), FX_MODE_BLINK, RED, 1000, false); //COPPER_TUBE as far as it's filled
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_BLINK, RED, 500, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1    
@@ -212,7 +208,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_BLINK, GREEN, 500, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, (segment_1_START+ customEffect1_counter), FX_MODE_BLINK, GREEN, 1000, false); //COPPER_TUBE as far as it's filled
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_BLINK, GREEN, 500, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1    
@@ -223,7 +218,6 @@ void setLeds()
       ws2812fx.setSegment(1, segment_1_START, (segment_1_START+ customEffect1_counter), FX_MODE_BLINK, BLUE, 1000, false); //COPPER_TUBE as far as it's filled
       ws2812fx.setSegment(7, (segment_1_START+ customEffect1_counter),segment_1_STOP , FX_MODE_STATIC, BLACK, 1000, false); //COPPER_TUBE rest
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, 16, BLUE, 500, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1    
@@ -233,7 +227,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, 16, RED, 700, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_CUSTOM, RED, 100, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, BLACK, 1000, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 500, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_1
@@ -246,7 +239,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_STATIC, GREEN, 100, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_STATIC, BLACK, 100, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, GREEN, 100, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1    
@@ -255,7 +247,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_BLINK, GREEN, 1000, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_STATIC, BLACK, 100, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, GREEN, 100, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_1          
@@ -275,7 +266,6 @@ void setLeds()
       }else{
         ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, 16, GREEN, 1000, false); //CONE_RIGHT
       }
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_1    
@@ -285,7 +275,7 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_BLINK, RED, 500, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, (segment_1_START+ customEffect1_counter), FX_MODE_BLINK, RED, 1000, false); //COPPER_TUBE as far as it's filled
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_BLINK, RED, 500, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
+
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1    
@@ -295,7 +285,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_BLINK, GREEN, 500, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, (segment_1_START+ customEffect1_counter), FX_MODE_BLINK, GREEN, 1000, false); //COPPER_TUBE as far as it's filled
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_BLINK, GREEN, 500, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1    
@@ -305,7 +294,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_STATIC, BLACK, 500, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_CUSTOM, RED, 100, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, BLACK, 500, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_BLINK, RED, 1000, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLUE, 1000, false); //BTN_1    
@@ -319,7 +307,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, 16, RED, 700, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_CUSTOM, RED, 100, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, BLACK, 1000, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 500, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 1000, false); //BTN_1
@@ -332,7 +319,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_STATIC, GREEN, 100, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_STATIC, BLACK, 100, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, GREEN, 100, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1        
@@ -341,7 +327,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_BLINK, GREEN, 1000, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_STATIC, BLACK, 100, false); //COPPER_TUBE
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_STATIC, GREEN, 100, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_1          
@@ -361,7 +346,6 @@ void setLeds()
       }else{
         ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, 16, GREEN, 1000, false); //CONE_RIGHT
       }
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_1    
@@ -371,7 +355,6 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_BLINK, RED, 500, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, (segment_1_START+ customEffect1_counter), FX_MODE_BLINK, MP_colors[MP_currentPlayer], 1000, false); //COPPER_TUBE as far as it's filled
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_BLINK, RED, 500, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1    
@@ -385,7 +368,6 @@ void setLeds()
         ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_BLINK, MP_colors[MP_leader], 500, false); //CONE_LEFT
         ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, 16, MP_colors[MP_leader], 4000, false); //COPPER_TUBE as far as it's filled
         ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_BLINK, MP_colors[MP_leader], 500, false); //CONE_RIGHT
-        ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
         ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
         ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
         ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1    
@@ -394,7 +376,6 @@ void setLeds()
         ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_RAINBOW_CYCLE, WHITE, 500, false); //CONE_LEFT
         ws2812fx.setSegment(1, segment_1_START, segment_1_STOP, FX_MODE_RAINBOW_CYCLE, WHITE, 500, false); //COPPER_TUBE as far as it's filled
         ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_RAINBOW_CYCLE, WHITE, 500, false); //CONE_RIGHT
-        ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
         ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
         ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
         ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1            
@@ -405,13 +386,19 @@ void setLeds()
       ws2812fx.setSegment(0, segment_0_START, segment_0_STOP, FX_MODE_BLINK, GREEN, 500, false); //CONE_LEFT
       ws2812fx.setSegment(1, segment_1_START, (segment_1_START+ customEffect1_counter), FX_MODE_BLINK, MP_colors[MP_currentPlayer], 1000, false); //COPPER_TUBE as far as it's filled
       ws2812fx.setSegment(2, segment_2_START, segment_2_STOP, FX_MODE_BLINK, GREEN, 500, false); //CONE_RIGHT
-      ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_4
       ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
       ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
       ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, GREEN, 1000, false); //BTN_1    
     break;       
   }
 
+  if(resetPressDown == true)
+  {
+    ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, FX_MODE_BLINK, RED, 1000, true); //BTN_4
+    ws2812fx.setSegment(6, segment_6_START, segment_6_STOP, FX_MODE_BLINK, RED, 1000, false); //BTN_1
+    ws2812fx.setSegment(4, segment_4_START, segment_4_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_3
+    ws2812fx.setSegment(5, segment_5_START, segment_5_STOP, FX_MODE_STATIC, BLACK, 100, false); //BTN_2
+  }
 }
 
 void checkButtons()
@@ -443,6 +430,11 @@ void checkButtons()
 
 void buttonPressed(int btnIndex)
 {
+  if(btnIndex == 6)
+  {
+    //btn 4 pressed, make button 1 blink
+    resetPressDown = true;
+  }
 
   switch(state)
   {
@@ -480,7 +472,7 @@ void buttonPressed(int btnIndex)
       {
         case 5:
           SP_index ++;
-          if(SP_index > 4)
+          if(SP_index > 5)
           {
             SP_index = 0;
           }
@@ -545,6 +537,8 @@ void buttonPressed(int btnIndex)
           Serial.println("Changed to state 9");
           break;          
         case 2:
+          //tube touched, game over!
+          digitalWrite(RELAIS,LOW);
           state = 8;
           Serial.println("Changed to state 8");
           break;
@@ -612,10 +606,12 @@ void buttonPressed(int btnIndex)
           Serial.println("Changed to state 16");
         break;
         case 2:
+        //tube touch
         int speedstep = SP_speeds[SP_index] / (segment_1_STOP-segment_1_START);
         int penaltyLeds = SP_penalty[SP_index] / speedstep;
         customEffect1_counter = customEffect1_counter + penaltyLeds;
         lastPenalty = millis();
+        digitalWrite(RELAIS,LOW);
         break;
       }
     break;
@@ -716,6 +712,7 @@ void buttonPressed(int btnIndex)
         MP_penalties++;
         customEffect1_counter = customEffect1_counter + penaltyLeds;
         lastPenalty = millis();
+        digitalWrite(RELAIS,LOW);
         break;
       }
     break;          
@@ -765,6 +762,17 @@ void buttonPressed(int btnIndex)
 
 void buttonReleased(int btnIndex)
 {
+  if(btnIndex == 6)
+  {
+    //btn 4 released
+    ws2812fx.setSegment(3, segment_3_START, segment_3_STOP, 2, WHITE, 1000, true); //BTN_4
+    resetPressDown = false;
+  }
+  if(btnIndex == 2)
+  {
+    //tube no longer touching
+    digitalWrite(RELAIS,HIGH);
+  }
   switch(state)
   {
     case 5:
